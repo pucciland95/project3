@@ -62,18 +62,17 @@ while contLearning < len(learningParameter):
 """
 ##################################################EXPERIMENTS DONE WITH THE leakyReLu###########################################
 cont = 0
-lamndaList = [5, 5, 5, 5, 5]
-learningParameter = [0.000001, 0.0000001, 0.0000001, 0.001, 0.01]
+lamndaList = [5, 5]
+learningParameter = [0.001, 0.01]
 contLearning = 0
 while contLearning < len(learningParameter):
 
     net = Network([784, 30, 10], [None, leakyReLu, leakyReLu])
     startingTime = time()
-    net.training(trainingData, 20, 50, learningParameter[contLearning], lamndaList[contLearning]/len(trainingData), validationData)
+    net.training(trainingData, 400, 50, learningParameter[contLearning], lamndaList[contLearning]/len(trainingData), validationData)
     finalTime = time() - startingTime
     contLearning += 1
 
     print("The testing accuracy is equal to: " + str(net.evaluate(testData)/len(testData)*100))
     print("The requested training time has been: ", finalTime)
     print("\n\n\n")
-

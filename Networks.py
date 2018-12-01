@@ -216,9 +216,9 @@ def reLuPrime(z):
     return z #######TEST################
 
 
-def leakyReLuPrime(data, beta=0.05):
+def leakyReLuPrime(data):
     gradients = 1. * (data >= 0)
-    gradients[gradients < 0] = beta
+    gradients[gradients == 0] = 0.05
     return gradients
 
 ##############function that calls all the activation fnctions depending by which layer we are in ###########################
@@ -234,7 +234,7 @@ def derActFncs(actFunc, a):
         return reLuPrime(a)
 
     if actFunc == leakyReLu:
-        return leakyReLuPrime(a, 0.05)
+        return leakyReLuPrime(a)
 
     else:
         print("No act function found!")
