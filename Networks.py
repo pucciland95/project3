@@ -33,7 +33,7 @@ class Network(object):
 
         return np.array(x)
 
-    def training(self, trainData, T, n, alpha, lmbda, validationData, earlyStop = 5):
+    def training(self, trainData, T, n, alpha, lmbda, validationData, earlyStop = 30):
         cont = 0
         contAccuracy = 0
 
@@ -77,7 +77,7 @@ class Network(object):
         self.weights = backUpWeight
         self.biases = backUpBias
 
-    def updateWeights(self, batch, alpha, lmbda):
+    def updateWeights(self, batch, alpha, lmbda, L1 = False):
         gradientList = []
 
         for x in batch:
@@ -96,30 +96,43 @@ class Network(object):
         for x in range(len(averagedBias)):
             averagedBias[x] = averagedBias[x] / len(batch)
 
+        ############################## L1 formulation ######################################################
+        if L1 == True:
+            cont = 0
+            while cont <= len(averagedWeight) - 1:
+                self.weights[cont] = self.weights[cont] - alpha * averagedWeight[cont] - alpha * lmbda * np.sign(self.weights[cont])
+                cont += 1
 
-        cont = 0
-        while cont <= len(averagedWeight) - 1:
-            self.weights[cont] = self.weights[cont] - alpha * averagedWeight[cont] - alpha * lmbda * self.weights[cont]
-            cont += 1
+            cont = 0
+            while cont <= len(averagedBias) - 1:
+                self.biases[cont] = self.biases[cont] - alpha * averagedBias[cont]
+                cont += 1
 
-        cont = 0
-        while cont <= len(averagedBias) - 1:
-            self.biases[cont] = self.biases[cont] - alpha * averagedBias[cont]
-            cont += 1
+        ############################## L2 formulation #######################################################
+        else:
+            cont = 0
+            while cont <= len(averagedWeight) - 1:
+                self.weights[cont] = self.weights[cont] - alpha * averagedWeight[cont] - alpha * lmbda * self.weights[cont]
+                cont += 1
+
+            cont = 0
+            while cont <= len(averagedBias) - 1:
+                self.biases[cont] = self.biases[cont] - alpha * averagedBias[cont]
+                cont += 1
 
     def backprop(self, x, y):
         x = np.reshape(x, x.shape[:-1])
         y = np.reshape(y, y.shape[:-1])
 
         aList = []  # List containing all the outputs of the neurons of the neural network
-        zList = [] #######TEST################
+        zList = []
 
         ################################## Inference ###############################
         a = x
         for k in range(0, len(self.sizes) -1):
             bias = np.reshape(self.biases[k], self.biases[k].shape[:-1])
             z = np.dot(self.weights[k], a) + bias
-            zList.append(z) #######TEST################
+            zList.append(z)
             a = self.activationFcns[k + 1](z)
             aList.append(a)
         ###########################################################################
@@ -132,8 +145,7 @@ class Network(object):
 
         dErr = dSquaredLoss(aList[len(aList) - 1], y)  # List containing all the derivatives of the error
         actFunct = self.activationFcns[len(self.sizes) - 1]  # I take the last activation function because at the first iteration we are in the first layer
-        #dActFunct = derActFncs(actFunct, aList[len(aList) - 1])  # Derivative of the activation function evalueted at a given a #######DA RIMUOVERE PER IL TEST################
-        dActFunct = derActFncs(actFunct, zList[len(zList) - 1])  # Derivative of the activation function evalueted at a given z #######TEST################
+        dActFunct = derActFncs(actFunct, zList[len(zList) - 1])  # Derivative of the activation function evalueted at a given z
 
         np.array(dActFunct)
         deltaL = dActFunct * dErr
@@ -144,8 +156,7 @@ class Network(object):
                 deltaL = deltaPrevLayer
 
             # costruction of the previous deltaL-1
-            #deltaPrevLayer = np.sum(self.weights[j].transpose() * deltaL, axis=1) * derActFncs(self.activationFcns[j + 1], aList[j])
-            deltaPrevLayer = np.sum(self.weights[j].transpose() * deltaL, axis=1) * derActFncs(self.activationFcns[j + 1], zList[j]) #######TEST################
+            deltaPrevLayer = np.sum(self.weights[j].transpose() * deltaL, axis=1) * derActFncs(self.activationFcns[j + 1], zList[j])
             flag = 1
             mom = []
 
@@ -179,45 +190,38 @@ def sigmoid(z):
 
 
 def tanh(z):
-    return (1 - np.exp(-2 * z)) / (1 + np.exp(-2 * z))
+    return np.tanh(z)
 
 
 def reLu(z):
-    return max(0, z)
+    return np.maximum(z, 0)
 
+
+def leakyReLu(z, beta=0.05):
+    return np.maximum(z, beta*z)
 
 ################Derivates definitions#######################
-"""
-def sigmoid_prime(a):
-    return a * (1 - a) #######DA RIMUOVERE PER IL TEST################
-"""
+
 def sigmoid_prime(z):
     return sigmoid(z) * (1 - sigmoid(z)) #######TEST################
 
-"""
-def tanhPrime(a):
-    return 1 - np.power(a, 2) #######DA RIMUOVERE PER IL TEST################
-"""
+
 def tanhPrime(z):
-    return 1 - np.power(tanh(z), 2) #######TEST################
+    return 1.0 - np.tanh(z)**2 #######TEST################
 
-"""
-def reLuPrime(a):
-    result = []
 
-    for x in a:
-        if x > 0:
-            result.append(1)
-        else:
-            result.append(0)
-
-    return np.array(result)  #######DA RIMUOVERE PER IL TEST################
-"""
 def reLuPrime(z):
     z[z > 0] = 1
     z[z < 0] = 0
     return z #######TEST################
 
+
+def leakyReLuPrime(data, beta=0.05):
+    gradients = 1. * (data >= 0)
+    gradients[gradients < 0] = beta
+    return gradients
+
+##############function that calls all the activation fnctions depending by which layer we are in ###########################
 
 def derActFncs(actFunc, a):
     if actFunc == sigmoid:
@@ -228,6 +232,9 @@ def derActFncs(actFunc, a):
 
     if actFunc == reLu:
         return reLuPrime(a)
+
+    if actFunc == leakyReLu:
+        return leakyReLuPrime(a, 0.05)
 
     else:
         print("No act function found!")
